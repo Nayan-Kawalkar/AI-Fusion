@@ -1,0 +1,99 @@
+# Python Lists, Dictionaries and Mutable Default Arguments
+
+Lists and dictionaries are Python's workhorse containers. Both are mutable: they can be changed in place after they are created. Mutability is powerful, but it is also the source of some of the most surprising bugs in Python, especially when a mutable object is used as a default argument.
+
+## List basics
+
+A list is an ordered, mutable sequence. Indices start at 0 and negative indices count from the end. Slicing with `items[start:stop]` returns a new list containing the elements from start up to, but not including, stop.
+
+```python
+items = ["pen", "book", "lamp"]
+items.append("mug")          # add one element at the end
+items.extend(["cup", "bag"]) # add every element of another iterable
+items.insert(0, "desk")      # insert at a position
+last = items.pop()           # remove and return the last element
+items.remove("book")         # remove the first matching value (ValueError if absent)
+first_two = items[:2]        # slicing returns a new list
+```
+
+Note the difference between `append` and `extend`: `items.append([1, 2])` adds a single element that is itself a list, while `items.extend([1, 2])` adds two elements.
+
+Methods such as `append`, `extend`, `insert`, `sort` and `reverse` change the list in place and return None. Writing `items = items.sort()` therefore replaces your list with None. Use `sorted(items)` when you want a new sorted list.
+
+## List comprehensions
+
+A list comprehension builds a new list from an iterable in a single expression. The general form is `[expression for item in iterable if condition]`. It is usually clearer and faster than an explicit loop with append.
+
+```python
+prices = [12.5, 3.0, 8.75, 20.0]
+cheap = [p for p in prices if p < 10]          # [3.0, 8.75]
+with_tax = [round(p * 1.2, 2) for p in prices]
+pairs = [(x, y) for x in range(3) for y in range(2)]
+```
+
+Keep comprehensions short. If you need several conditions or nested loops that are hard to read, a normal for loop is better. Do not use a comprehension only for its side effects, such as `[print(x) for x in items]`.
+
+Similar syntax creates sets `{x for x in items}`, dictionaries `{k: v for k, v in pairs}` and generator expressions `(x for x in items)`. A generator expression produces values lazily, which saves memory when you only iterate once, for example `sum(p.price for p in products)`.
+
+## Dictionary basics
+
+A dictionary maps unique, hashable keys to values. Since Python 3.7 dictionaries keep insertion order.
+
+```python
+stock = {"apple": 10, "pear": 4}
+stock["kiwi"] = 7                 # add or overwrite
+stock.get("mango", 0)             # read with a default, no KeyError
+stock.setdefault("plum", 0)       # insert default only if missing
+for name, qty in stock.items():   # iterate over key/value pairs
+    print(name, qty)
+del stock["pear"]                 # remove a key (KeyError if absent)
+```
+
+Use `collections.Counter` to count things and `collections.defaultdict(list)` to group values without checking whether a key exists first.
+
+Do not add or remove keys while iterating over a dictionary; Python raises `RuntimeError: dictionary changed size during iteration`. Iterate over `list(d.items())` instead if you need to modify it.
+
+## Copies, aliases and shallow copies
+
+Assignment never copies an object. `b = a` makes `b` another name for the same list, so changes through either name are visible through both. To copy, use `a.copy()`, `list(a)` or `a[:]` for lists and `d.copy()` or `dict(d)` for dictionaries. These are shallow copies: nested lists or dictionaries inside are still shared. Use `copy.deepcopy()` when you need fully independent nested data.
+
+```python
+a = [[1, 2], [3, 4]]
+b = a.copy()
+b[0].append(99)
+print(a)   # [[1, 2, 99], [3, 4]] -- the inner list is shared
+```
+
+## Mutable default arguments
+
+Default argument values are evaluated once, when the `def` statement runs, not each time the function is called. If the default is a mutable object such as a list, dictionary or set, every call that relies on the default shares the very same object. Modifications made in one call are still there in the next call.
+
+```python
+def add_tag(tag, tags=[]):
+    tags.append(tag)
+    return tags
+
+add_tag("python")   # ['python']
+add_tag("django")   # ['python', 'django']  <- surprise: the list was reused
+```
+
+In a web application this is worse: the shared default lives for as long as the server process, so data from one user's request can leak into another user's request. A shopping cart function with `cart=[]` as default will keep accumulating every product added by every visitor.
+
+The fix is to use None as the default and create a new object inside the function:
+
+```python
+def add_tag(tag, tags=None):
+    if tags is None:
+        tags = []
+    tags.append(tag)
+    return tags
+```
+
+The same rule applies to dictionaries (`options={}`), sets, and any other mutable object, including instances of your own classes. Immutable defaults such as numbers, strings, tuples and None are safe. Linters report this pattern (for example flake8-bugbear's B006), and you can spot it by looking for `=[]`, `={}` or `=set()` in a function signature.
+
+## Choosing the right container
+
+- Use a list for an ordered collection you iterate over or index by position.
+- Use a dictionary to look values up by a key in constant time.
+- Use a set to test membership quickly or remove duplicates.
+- Use a tuple for a fixed group of values that should not change, such as coordinates or a database row.

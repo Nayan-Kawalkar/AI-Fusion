@@ -1,0 +1,22 @@
+{
+  "_help": "Everything you plan to show judges. `python manage.py warm_cache` pre-answers each item; `python manage.py demo_check` shows which are ready. Ask chat questions as the FIRST message of a New chat, with the project's default file open (orders/views.py) and nothing selected; select the exact function lines for Explain/Debug with an empty problem box unless `problem` is set.",
+  "project": "demo_project",
+  "selection": [
+    {"path": "orders/services.py", "function": "def order_total", "action": "debug"},
+    {"path": "orders/services.py", "function": "def order_total", "action": "explain"},
+    {"path": "orders/views.py", "function": "def customer_orders", "action": "debug"},
+    {"path": "orders/views.py", "function": "def customer_orders", "action": "explain"},
+    {"path": "orders/services.py", "function": "def add_to_cart", "action": "debug"},
+    {"path": "orders/services.py", "function": "def add_to_cart", "action": "explain"}
+  ],
+  "chat": [
+    {"message": "What does this project do? Give me a tour of the main files.", "file": "orders/views.py"},
+    {"message": "Review the whole project: what bugs or risks do you see?", "file": "orders/views.py"},
+    {"message": "Why is the order total too low? Fix it.", "file": "orders/views.py"},
+    {"message": "/django-backend Review the customer_orders view and fix it.", "file": "orders/views.py"}
+  ],
+  "paste": [
+    {"code": "def add_tag(tag, tags=[]):\n    tags.append(tag)\n    return tags\n", "problem": "My tags list keeps growing between calls", "action": "debug"},
+    {"code": "", "problem": "How do I train a neural network in PyTorch?", "action": "explain"}
+  ]
+}

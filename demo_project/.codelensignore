@@ -1,0 +1,2 @@
+# Paths CodeLens should not index (team notes, not part of the app).
+BUGS.md

@@ -1,0 +1,111 @@
+# Loops, range() and Off-by-One Errors in Python
+
+Python has two loop statements, `for` and `while`. A `for` loop walks over the items of any iterable, and `range()` produces sequences of integers for counting loops. Most loop bugs are off-by-one errors, where a loop runs one time too many or one time too few.
+
+## The for loop
+
+A `for` loop takes each element of an iterable in turn. You do not manage an index yourself, so the most natural and safest way to process every element of a list is to loop over the list directly.
+
+```python
+items = ["pen", "book", "lamp"]
+for item in items:
+    print(item)
+```
+
+## How range() works
+
+`range(stop)` produces 0, 1, ..., stop - 1. `range(start, stop)` produces start up to stop - 1, and `range(start, stop, step)` moves by step each time. The stop value is always excluded. Because of this, `range(n)` yields exactly n numbers, and `range(len(items))` yields exactly the valid indices of `items`.
+
+```python
+list(range(5))         # [0, 1, 2, 3, 4]
+list(range(2, 6))      # [2, 3, 4, 5]
+list(range(10, 0, -3)) # [10, 7, 4, 1]
+```
+
+Think of range in terms of half-open intervals [start, stop). The number of values is stop - start, and adjacent ranges such as range(0, 5) and range(5, 10) fit together without overlapping or leaving a gap.
+
+## Off-by-one errors
+
+An off-by-one error happens when a boundary is wrong by exactly one. With range() there are three classic forms.
+
+Stopping one too early skips the last element. This bug is silent: no exception is raised, the result is just wrong, for example a total that is missing the last line item.
+
+```python
+total = 0
+for i in range(len(prices) - 1):   # BUG: index len(prices) - 1 is never visited
+    total += prices[i]
+```
+
+Starting one too late skips the first element:
+
+```python
+for i in range(1, len(prices)):     # BUG if you meant to include prices[0]
+    total += prices[i]
+```
+
+Going one too far raises IndexError on the last iteration:
+
+```python
+for i in range(len(prices) + 1):    # BUG: prices[len(prices)] does not exist
+    total += prices[i]
+```
+
+The fix in every case is to iterate over all elements. The clearest version does not use indices at all:
+
+```python
+total = 0
+for price in prices:
+    total += price
+
+total = sum(prices)                       # even simpler
+total = sum(item.price * item.quantity for item in items)
+```
+
+When you genuinely need indices, `range(len(prices))` covers every valid index exactly once. Test loops with an empty list, a list of one element and a list of two elements; off-by-one errors almost always show up in one of these cases.
+
+## enumerate() and zip()
+
+Use `enumerate()` when you need both the position and the value. It avoids manual index arithmetic. Use `zip()` to walk over several sequences in parallel; it stops at the shortest one, and `zip(a, b, strict=True)` (Python 3.10+) raises ValueError if the lengths differ.
+
+```python
+for position, name in enumerate(names, start=1):
+    print(position, name)
+
+for product, qty in zip(products, quantities):
+    print(product, qty)
+```
+
+## while loops
+
+A `while` loop repeats as long as its condition is true. Make sure something in the body moves the loop towards ending, otherwise it runs forever. Off-by-one mistakes also appear here, typically as `<` versus `<=` in the condition.
+
+```python
+i = 0
+while i < len(items):   # '<' visits indices 0..len-1; '<=' would raise IndexError
+    print(items[i])
+    i += 1
+```
+
+## break, continue and else on loops
+
+`break` leaves the loop immediately, and `continue` skips to the next iteration. A loop can have an `else` block that runs only when the loop finished without hitting `break`, which is handy for search loops.
+
+```python
+for order in orders:
+    if order.status == "open":
+        print("found", order)
+        break
+else:
+    print("no open orders")
+```
+
+## Modifying a list while looping over it
+
+Removing elements from a list while iterating over it makes the loop skip elements, because the indices shift under the iterator. Build a new list instead, or iterate over a copy.
+
+```python
+items = [i for i in items if not i.is_expired]   # safe
+for i in items[:]:                                # iterate over a copy
+    if i.is_expired:
+        items.remove(i)
+```

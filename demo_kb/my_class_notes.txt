@@ -1,0 +1,43 @@
+# My Class Notes — Debugging Habits and Python Gotchas
+
+Personal notes from the programming lab sessions. Short and practical.
+
+## My debugging checklist
+
+1. Read the error message from the bottom of the traceback up. The last line says what went wrong; the last frame in my own code says where.
+2. Reproduce the bug with the smallest possible input (empty list, one item, two items).
+3. Check my assumptions with print() or the debugger: what type is this variable, is it None, how long is the list?
+4. Change one thing at a time and re-run.
+5. After fixing, add a test so the bug cannot come back.
+
+## Money: use Decimal, not float
+
+Floats cannot represent most decimal fractions exactly, so `0.1 + 0.2` gives `0.30000000000000004`. For prices and totals use `decimal.Decimal`, create values from strings (`Decimal("19.99")`, not `Decimal(19.99)`), and round with `quantize(Decimal("0.01"))`. Django's DecimalField returns Decimal values.
+
+```python
+from decimal import Decimal
+
+total = Decimal("0.00")
+total += Decimal("19.99") * 3
+print(total.quantize(Decimal("0.01")))   # 59.97
+```
+
+## Naming rules I keep forgetting (PEP 8)
+
+- Functions and variables: `snake_case`
+- Classes: `CapWords`
+- Constants: `UPPER_CASE`
+- Private helpers: a leading underscore, `_helper`
+- Never name a variable `list`, `dict`, `str`, `id` or `sum`; it hides the built-in.
+
+## is versus ==
+
+`==` compares values, `is` compares identity (the same object). Use `is` only for None, True and False: `if value is None:`. Comparing strings or numbers with `is` may work by accident in small tests and then fail later.
+
+## Integer division and rounding
+
+`/` always returns a float (`7 / 2 == 3.5`), `//` floors (`7 // 2 == 3`, and `-7 // 2 == -4`), and `%` gives the remainder. `round()` uses banker's rounding: `round(2.5) == 2`.
+
+## Strings are immutable
+
+String methods such as `strip()`, `replace()` and `upper()` return a new string; they never change the original. Write `name = name.strip()`, not just `name.strip()`.

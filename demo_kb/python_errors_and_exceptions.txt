@@ -1,0 +1,129 @@
+# Python Errors and Exceptions
+
+This guide explains how Python reports problems at runtime, how to read a traceback, and what the most common built-in exceptions mean. It also covers how to handle, raise and define exceptions correctly.
+
+## Syntax errors versus exceptions
+
+A syntax error is detected before your program starts running. The parser cannot understand the source code, so nothing executes. Typical causes are a missing colon after `if`, `for`, `def` or `class`, unbalanced brackets, or wrong indentation. The error message points at the line and usually shows a caret under the position where the parser gave up. The real mistake is often on the line before the one reported, for example an unclosed parenthesis.
+
+```python
+def greet(name)
+    print("Hello", name)
+# SyntaxError: expected ':'
+```
+
+An exception, by contrast, happens while the program is running. The code was valid Python, but an operation failed: dividing by zero, looking up a missing key, calling a method on None. Unhandled exceptions stop the program and print a traceback.
+
+## Reading a traceback
+
+A traceback lists the chain of function calls that led to the error, oldest call first and the failing line last. Always start reading from the bottom.
+
+The last line has the form `ExceptionType: message`. The type tells you the category of problem and the message gives details. The lines above show the file name, line number and function name of every frame in the call stack. Find the last frame that belongs to your own code; that is usually where the fix is needed, even if the exception was raised deeper inside a library.
+
+```text
+Traceback (most recent call last):
+  File "shop/views.py", line 25, in customer_orders
+    orders = Order.objects.get(customer=customer)
+  File ".../django/db/models/query.py", line 640, in get
+    raise self.model.MultipleObjectsReturned(
+orders.models.Order.MultipleObjectsReturned: get() returned more than one Order -- it returned 3!
+```
+
+Here the library raised the exception, but the mistake is in `shop/views.py` line 25.
+
+## IndexError
+
+`IndexError: list index out of range` means you used an index that does not exist in a sequence. A list of length n has valid indices 0 to n - 1, and negative indices -1 to -n. Using `items[len(items)]` always fails, because the last valid index is `len(items) - 1`.
+
+Common causes:
+
+- A loop bound that goes one step too far, such as `range(len(items) + 1)`.
+- Accessing `items[0]` on an empty list.
+- Assuming two lists have the same length when they do not.
+
+```python
+scores = [70, 85, 90]
+print(scores[3])      # IndexError: valid indices are 0, 1, 2
+print(scores[-1])     # 90, the last element
+```
+
+Prefer iterating directly over the elements (`for s in scores`) instead of over indices; it removes this whole class of bug.
+
+## KeyError
+
+`KeyError` is raised when a dictionary does not contain the requested key. Use `key in d` to test membership, `d.get(key, default)` to read with a fallback, or `d.setdefault(key, default)` to insert a default when missing.
+
+```python
+prices = {"apple": 1.2, "pear": 0.9}
+prices["mango"]              # KeyError: 'mango'
+prices.get("mango", 0.0)     # 0.0, no exception
+```
+
+## TypeError
+
+`TypeError` means an operation was applied to a value of the wrong type. Examples: adding a string to an integer (`"total: " + 5`), calling something that is not callable, or passing the wrong number of arguments to a function. The message usually names both types involved. Convert explicitly with `str()`, `int()` or `float()`, or use an f-string for text formatting.
+
+```python
+count = 5
+print("count: " + count)     # TypeError: can only concatenate str (not "int") to str
+print(f"count: {count}")     # works
+```
+
+## ValueError
+
+`ValueError` means the type is right but the value is not acceptable. `int("abc")` raises ValueError because "abc" is a string but not a numeric one. Functions you write should raise ValueError when they receive an argument of the right type with an invalid value, for example a discount percentage outside 0 to 100.
+
+```python
+def apply_discount(total, percent):
+    if not 0 <= percent <= 100:
+        raise ValueError("percent must be between 0 and 100")
+    return total * (100 - percent) / 100
+```
+
+## AttributeError and NoneType
+
+`AttributeError: 'NoneType' object has no attribute 'x'` almost always means a variable you expected to hold an object is actually None. Frequent sources are functions that forget to `return` a value (they return None implicitly), methods such as `list.sort()` and `list.append()` that modify in place and return None, and lookups such as `re.match()` or `dict.get()` that return None when nothing is found.
+
+```python
+names = ["b", "a"]
+names = names.sort()     # names is now None!
+names.append("c")        # AttributeError: 'NoneType' object has no attribute 'append'
+```
+
+## NameError and UnboundLocalError
+
+`NameError` is raised when a name is used before it was defined, often because of a typo or a missing import. `UnboundLocalError` is a special case: a function assigns to a variable somewhere in its body, which makes the name local for the whole function, and the code reads it before the assignment happens.
+
+## Handling exceptions with try / except / else / finally
+
+Wrap only the statement that can fail, and catch the most specific exception type you can handle. The `else` block runs only if no exception occurred, and `finally` always runs, which makes it the right place for clean-up such as closing files.
+
+```python
+try:
+    value = int(user_input)
+except ValueError:
+    print("Please enter a whole number")
+else:
+    print("You entered", value)
+finally:
+    print("done")
+```
+
+Avoid a bare `except:`. It catches everything, including KeyboardInterrupt and SystemExit, and hides real bugs. If you must catch broadly, use `except Exception as exc:` and log the exception.
+
+## Raising and chaining exceptions
+
+Use `raise SomeError("message")` to signal a problem. When converting one exception into another, use `raise NewError(...) from exc` so the original cause is preserved in the traceback. Re-raise the current exception with a bare `raise` inside an except block when you only want to log it.
+
+## Defining custom exceptions
+
+Create custom exception classes by subclassing Exception (or a more specific built-in). Give them clear names ending in Error. Callers can then catch your error precisely.
+
+```python
+class OutOfStockError(Exception):
+    """Raised when an order asks for more units than are available."""
+
+def reserve(product, quantity):
+    if quantity > product.stock:
+        raise OutOfStockError(f"only {product.stock} left of {product.name}")
+```

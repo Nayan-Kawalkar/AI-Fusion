@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}CodeLens — Skills{% endblock %}
+{% block body_class %}page-kb{% endblock %}
+
+{% block header_actions %}
+<div class="topbar-actions">
+  <a href="/" class="btn btn-sm cl-btn"><i class="bi bi-arrow-left"></i> Back to IDE</a>
+  <a href="/knowledge/" class="btn btn-sm cl-btn"><i class="bi bi-journal-text"></i> Knowledge Base</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="kb-wrap">
+  <h1>Skills</h1>
+  <p class="muted mb-0">A skill tells CodeLens <b>which knowledge-base files</b> and <b>which web docs</b> to use for a kind of work — backend, UI/UX, debugging, agents — plus how to answer. Trigger one by typing <kbd>/name</kbd> at the start of a Chat message or the problem box.</p>
+
+  <div class="kb-card">
+    <div class="d-flex align-items-center mb-2">
+      <h2 class="h6 mb-0">Installed skills</h2>
+      <span id="skillSummary" class="muted small ms-2"></span>
+    </div>
+    <div id="skillList" class="skill-grid"><div class="loading-line"><span class="spinner-border spinner-border-sm"></span><span>Loading skills…</span></div></div>
+  </div>
+
+  <div class="kb-card">
+    <h2 class="h6">Add a skill</h2>
+    <div id="skillDrop" class="dropzone" role="button" tabindex="0">
+      <i class="bi bi-file-earmark-arrow-up"></i>
+      <div><b>Drop a SKILL.md file here</b> or click to choose</div>
+      <div class="small mt-1">Uploading a skill with the same name replaces it. Web docs listed under <code>urls</code> are fetched and indexed right away.</div>
+    </div>
+    <input type="file" id="skillInput" accept=".md,.markdown,.txt" multiple hidden>
+
+    <div class="sub-label mt-4">Or write one</div>
+    <textarea id="skillEditor" class="skill-editor" spellcheck="false" aria-label="Skill source"></textarea>
+    <div class="d-flex gap-2 mt-2 align-items-center">
+      <button id="skillSave" class="btn btn-sm cl-btn-primary"><i class="bi bi-check2"></i> Save skill</button>
+      <button id="skillTemplate" class="btn btn-sm cl-btn" type="button"><i class="bi bi-arrow-counterclockwise"></i> Reset to template</button>
+      <span id="skillStatus" class="muted small"></span>
+    </div>
+    <details class="queries mt-3">
+      <summary>File format</summary>
+      <div class="small muted mt-2">
+        <p><code>name</code> — lowercase with dashes; you type it after <kbd>/</kbd>.<br>
+        <code>description</code> — shown in the <kbd>/</kbd> menu.<br>
+        <code>docs</code> — knowledge-base titles to search (wildcards like <code>python_*</code> work). Leave it out to search all docs.<br>
+        <code>urls</code> — public documentation pages fetched into the knowledge base and searched with this skill.<br>
+        Everything after the second <code>---</code> is instructions the AI follows while the skill is active.</p>
+      </div>
+    </details>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/skills.js' %}?v={{ asset_version }}"></script>
+{% endblock %}

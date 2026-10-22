@@ -1,0 +1,105 @@
+# Django QuerySets: get, filter, first and Friends
+
+A QuerySet represents a database query for a model. You obtain one from a model manager, usually `Model.objects`. QuerySets can be chained, sliced and iterated, and they are evaluated lazily. Choosing the right QuerySet method matters: some return a QuerySet (zero or more rows), some return a single model instance, and some raise exceptions.
+
+## QuerySets are lazy
+
+Creating or chaining a QuerySet does not touch the database. The query runs only when the QuerySet is evaluated: when you iterate over it, slice it with a step, call `len()`, `list()` or `bool()` on it, or print it in the shell. Results are cached on the QuerySet object, so iterating the same QuerySet twice runs one query.
+
+```python
+qs = Order.objects.filter(status="open")   # no query yet
+qs = qs.order_by("-created_at")           # still no query
+for order in qs:                          # the query runs here
+    print(order)
+```
+
+## all(), filter() and exclude() return QuerySets
+
+`all()` returns every row. `filter(**lookups)` returns the rows matching all the given conditions, and `exclude(**lookups)` returns the rows that do not match. All three return a QuerySet, which may contain zero, one or many objects. Iterating over an empty QuerySet is perfectly fine: the loop body simply does not run.
+
+```python
+open_orders = Order.objects.filter(status="open")
+customer_orders = Order.objects.filter(customer=customer)
+recent = Order.objects.exclude(status="shipped").filter(created_at__year=2024)
+```
+
+Field lookups use double underscores: `price__gte=10`, `name__icontains="lamp"`, `customer__email="a@b.com"` (following a relation), `created_at__date=today`.
+
+## get() returns exactly one object
+
+`get(**lookups)` returns a single model instance, not a QuerySet. It is meant for lookups that must match exactly one row, such as a primary key or a unique field.
+
+- If no row matches, it raises `Model.DoesNotExist`.
+- If more than one row matches, it raises `Model.MultipleObjectsReturned`.
+
+```python
+order = Order.objects.get(pk=order_id)            # good: pk is unique
+customer = Customer.objects.get(email=email)      # good: email is unique
+orders = Order.objects.get(customer=customer)     # WRONG: a customer can have many orders
+```
+
+The last line is a common mistake. When a customer has several orders, get() raises MultipleObjectsReturned; when they have none, it raises DoesNotExist; and even when exactly one exists, the result is an Order instance, so code that then does `for o in orders` fails with `TypeError: 'Order' object is not iterable`. When you expect a collection, use `filter()`:
+
+```python
+orders = Order.objects.filter(customer=customer)
+orders = customer.orders.all()     # same thing via the related_name
+```
+
+## first(), last() and exists()
+
+`first()` and `last()` return a single instance or None when the QuerySet is empty; they never raise DoesNotExist. They apply an ordering (by primary key if the QuerySet is unordered). Use them when "zero or one result, I just want one" is acceptable.
+
+`exists()` returns True or False and is the cheapest way to check whether any row matches. `count()` returns the number of matching rows using SQL COUNT, which is faster than `len(qs)` if you do not need the objects.
+
+```python
+latest = Order.objects.filter(customer=customer).order_by("-created_at").first()
+if latest is None:
+    ...
+has_open = Order.objects.filter(status="open").exists()
+```
+
+## get_object_or_404 and get_list_or_404
+
+In views, `django.shortcuts.get_object_or_404(Model, **lookups)` calls get() and converts DoesNotExist into an HTTP 404 response. It still raises MultipleObjectsReturned if the lookup is not unique, so only use it with unique lookups. `get_list_or_404(Model, **lookups)` calls filter() and raises 404 when the list is empty.
+
+```python
+from django.shortcuts import get_object_or_404
+
+order = get_object_or_404(Order, pk=order_id)
+```
+
+## Ordering, slicing and values
+
+`order_by("field")` sorts ascending, and `order_by("-field")` descending. Slicing such as `qs[:10]` becomes SQL LIMIT. `values("a", "b")` returns dictionaries and `values_list("a", flat=True)` returns plain values, which is useful when you do not need full model instances.
+
+## Avoiding the N+1 query problem
+
+Accessing a ForeignKey on each object in a loop runs one extra query per object. Use `select_related("customer")` for ForeignKey and OneToOne relations (SQL JOIN) and `prefetch_related("items")` for reverse ForeignKey and ManyToMany relations (one extra query for all objects).
+
+```python
+orders = Order.objects.select_related("customer").prefetch_related("items__product")
+```
+
+## Aggregation and annotation
+
+`aggregate()` computes values over the whole QuerySet and returns a dictionary. `annotate()` adds a computed value to each object.
+
+```python
+from django.db.models import Count, F, Sum
+
+Order.objects.aggregate(n=Count("id"))
+OrderItem.objects.filter(order=order).aggregate(total=Sum(F("unit_price") * F("quantity")))
+Customer.objects.annotate(order_count=Count("orders"))
+```
+
+## Updating and deleting in bulk
+
+`qs.update(field=value)` runs a single UPDATE statement and returns the number of rows changed; it does not call `save()` or send signals. `qs.delete()` deletes every matching row. Be careful: `Order.objects.all().delete()` removes the whole table.
+
+## Quick reference
+
+- Expect many rows (or none): `filter()`, `exclude()`, `all()`.
+- Expect exactly one row by a unique field: `get()`, `get_object_or_404()`.
+- Want one row or None: `filter(...).first()`.
+- Only need to know whether rows exist: `exists()`.
+- Only need how many: `count()`.

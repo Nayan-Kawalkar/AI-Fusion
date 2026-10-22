@@ -1,0 +1,12 @@
+.env
+venv/
+.venv/
+chroma_data/
+media/
+db.sqlite3
+llm_cache/
+__pycache__/
+*.pyc
+eval/results.json
+supabase/llm_cache_export.json
+chroma_test/

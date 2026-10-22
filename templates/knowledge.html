@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}CodeLens — Knowledge Base{% endblock %}
+{% block body_class %}page-kb{% endblock %}
+
+{% block header_actions %}
+<div class="topbar-actions">
+  <a href="/" class="btn btn-sm cl-btn"><i class="bi bi-arrow-left"></i> Back to IDE</a>
+  <a href="/skills/" class="btn btn-sm cl-btn"><i class="bi bi-magic"></i> Skills</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="kb-wrap">
+  <h1>Knowledge Base</h1>
+  <p class="muted mb-0">Upload language docs, framework guides or your own class notes (PDF, TXT, MD). They are split into chunks, embedded locally, and used to ground every answer.</p>
+
+  <div class="kb-card">
+    <div id="dropzone" class="dropzone" role="button" tabindex="0">
+      <i class="bi bi-cloud-arrow-up"></i>
+      <div><b>Drop PDF / TXT / MD files here</b> or click to choose</div>
+      <div class="small mt-1">Text is extracted per page (PDF headings and code blocks are detected), chunked to ~600 tokens without splitting code blocks, and indexed.</div>
+    </div>
+    <input type="file" id="docInput" accept=".pdf,.txt,.md" multiple hidden>
+    <div id="uploadStatus" class="small muted mt-2"></div>
+  </div>
+
+  <div class="kb-card">
+    <div class="d-flex align-items-center mb-2">
+      <h2 class="h6 mb-0">Documents</h2>
+      <span id="docSummary" class="muted small ms-2"></span>
+    </div>
+    <div id="docTable"></div>
+  </div>
+
+  <div class="kb-card">
+    <h2 class="h6">Test retrieval</h2>
+    <p class="muted small">Run the hybrid search (vector + BM25) against your documents, without calling the AI.</p>
+    <form id="searchForm" class="kb-search">
+      <input id="searchInput" placeholder="e.g. list comprehension, mutable default argument, QuerySet.get" autocomplete="off">
+      <button class="btn btn-sm cl-btn-primary" type="submit"><i class="bi bi-search"></i> Search</button>
+    </form>
+    <div id="searchResults" class="mt-3"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/knowledge.js' %}?v={{ asset_version }}"></script>
+{% endblock %}

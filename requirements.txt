@@ -1,0 +1,11 @@
+django>=5.0
+google-genai
+chromadb
+sentence-transformers
+rank_bm25
+pymupdf
+pyflakes
+python-dotenv
+pyyaml
+httpx
+psycopg[binary]

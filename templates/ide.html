@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}CodeLens — AI code explainer{% endblock %}
+{% block body_class %}page-ide session-home{% endblock %}
+
+{% block header_actions %}
+<div class="topbar-actions">
+  <span id="sessionLabel" class="session-label"></span>
+  <input type="file" id="folderInput" webkitdirectory directory multiple hidden>
+  <input type="file" id="zipInput" accept=".zip,application/zip" hidden>
+  <button id="btnDownload" class="btn btn-sm cl-btn" disabled title="Download the project, including your saved changes"><i class="bi bi-download"></i> Download .zip</button>
+  <a href="/knowledge/" class="btn btn-sm cl-btn"><i class="bi bi-journal-text"></i> Knowledge Base <span id="kbCount" class="kb-count"></span></a>
+  <a href="/skills/" class="btn btn-sm cl-btn" title="Skills you can trigger with / in Chat or the problem box"><i class="bi bi-magic"></i> Skills</a>
+</div>
+<div class="topbar-mode">
+  <button id="btnExit" class="btn btn-sm cl-btn-exit" title="End this session and go back to Home"><i class="bi bi-box-arrow-left"></i> Exit</button>
+  <label for="modeSelect">Mode</label>
+  <select id="modeSelect" class="form-select form-select-sm cl-select">
+    <option value="beginner">Beginner</option>
+    <option value="expert">Expert</option>
+    <option value="hint">Hint-first</option>
+  </select>
+</div>
+{% endblock %}
+
+{% block content %}
+<section id="home" class="home" aria-label="Start a session">
+  <div class="home-inner">
+    <h1 class="home-title">Start a session</h1>
+    <p class="home-sub">Work on a whole project, or paste a snippet. Each session is separate — use <b>Exit</b> to end it and come back here.</p>
+    <div class="home-cards">
+      <div class="home-card">
+        <div class="home-card-head"><i class="bi bi-folder2-open"></i><div><b>Project session</b><span>Browse files, scan the whole project, chat about it and apply AI edits.</span></div></div>
+        <div class="home-actions">
+          <button type="button" id="homeFolder" class="btn cl-btn-primary"><i class="bi bi-folder2-open"></i> Open folder</button>
+          <button type="button" id="homeZip" class="btn cl-btn"><i class="bi bi-file-earmark-zip"></i> Upload .zip</button>
+        </div>
+        <div class="sub-label">Recent projects</div>
+        <div id="homeRecent" class="home-recent"><div class="loading-line"><span class="spinner-border spinner-border-sm"></span><span>Loading…</span></div></div>
+      </div>
+      <div class="home-card">
+        <div class="home-card-head"><i class="bi bi-clipboard"></i><div><b>Paste session</b><span>Paste one snippet and explain, debug or chat about it. No project needed.</span></div></div>
+        <div class="home-actions">
+          <button type="button" id="homePaste" class="btn cl-btn-primary"><i class="bi bi-clipboard-plus"></i> Paste code</button>
+        </div>
+        <ul class="home-points">
+          <li>Answers are grounded in your Knowledge Base</li>
+          <li>Type <kbd>/</kbd> to use a skill</li>
+          <li>The code is never executed</li>
+        </ul>
+      </div>
+    </div>
+    <div class="home-links"><a href="/knowledge/"><i class="bi bi-journal-text"></i> Knowledge Base</a><a href="/skills/"><i class="bi bi-magic"></i> Skills</a></div>
+  </div>
+</section>
+<main class="ide" id="ide">
+  <aside class="pane pane-tree" id="paneTree">
+    <div class="pane-head">
+      <span>Explorer</span>
+      <span id="projectName" class="pane-sub"></span>
+    </div>
+    <div id="tree" class="tree">
+      <div class="empty-state small">
+        <i class="bi bi-folder2"></i>
+        <p class="muted">No project open</p>
+      </div>
+    </div>
+  </aside>
+  <div class="resizer" data-resize="tree" title="Drag to resize"></div>
+
+  <section class="pane pane-editor">
+    <div class="editor-bar">
+      <span id="filePath" class="file-path"></span>
+      <select id="pasteLang" class="form-select form-select-sm cl-select d-none" aria-label="Paste language">
+        <option value="python">Python</option>
+        <option value="javascript">JavaScript</option>
+        <option value="typescript">TypeScript</option>
+        <option value="java">Java</option>
+        <option value="cpp">C++</option>
+        <option value="plaintext">Other</option>
+      </select>
+      <div class="editor-actions">
+        <span id="selInfo" class="sel-info"></span>
+        <button id="btnSave" class="btn btn-sm cl-btn d-none" title="Save to the project copy (Ctrl+S)"><i class="bi bi-floppy"></i> Save</button>
+        <button id="btnExplain" class="btn btn-sm cl-btn-primary" title="Explain selection (Ctrl+Shift+E)"><i class="bi bi-lightbulb"></i> Explain</button>
+        <button id="btnDebug" class="btn btn-sm cl-btn-danger" title="Debug selection (Ctrl+Shift+D)"><i class="bi bi-bug"></i> Debug</button>
+        <button id="btnStop" class="btn btn-sm cl-btn-stop d-none" title="Stop (Esc)"><i class="bi bi-stop-fill"></i> Stop</button>
+      </div>
+    </div>
+    <div class="editor-wrap">
+      <div id="editorProject" class="editor"></div>
+      <div id="editorPaste" class="editor d-none"></div>
+      <div id="editorEmpty" class="empty-state">
+        <i class="bi bi-file-earmark-code"></i>
+        <p>Pick a file in the explorer.</p>
+        <p class="muted">Or ask about the whole project in the <b>Chat</b> tab.</p>
+      </div>
+      <div id="pastePlaceholder" class="paste-placeholder d-none">Paste your code here — select part of it (or nothing for the whole snippet), then press Explain or Debug.<br>Or leave it empty and just ask a question below.</div>
+      <div id="selPop" class="sel-pop d-none">
+        <button data-action="explain" title="Ctrl+Shift+E"><i class="bi bi-lightbulb"></i> Explain</button>
+        <button data-action="debug" title="Ctrl+Shift+D"><i class="bi bi-bug"></i> Debug</button>
+      </div>
+    </div>
+    <div class="problem-box">
+      <label for="problemText"><i class="bi bi-chat-left-text"></i> Describe your problem <span class="muted">(optional — paste a traceback, or start with / to use a skill)</span> <span id="problemSkill" class="skill-chip d-none"></span></label>
+      <div><textarea id="problemText" rows="2" placeholder="e.g. The total is always missing the last item — or: /python-debugging why does this crash?"></textarea></div>
+    </div>
+  </section>
+  <div class="resizer" data-resize="ai" title="Drag to resize"></div>
+
+  <aside class="pane pane-ai" id="paneAi">
+    <div class="ai-tabs" role="tablist" aria-label="Assistant views">
+      <button class="ai-tab" data-view="overview" role="tab"><i class="bi bi-grid-1x2"></i> Overview <span class="tab-badge" id="ovBadge"></span></button>
+      <button class="ai-tab" data-view="chat" role="tab"><i class="bi bi-chat-dots"></i> Chat</button>
+      <button class="ai-tab active" data-view="selection" role="tab"><i class="bi bi-cursor-text"></i> Selection</button>
+      <span id="aiStatus" class="pane-sub ms-auto"></span>
+    </div>
+    <div id="aiOverview" class="ai-body ai-view d-none"></div>
+    <div id="aiChat" class="ai-view chat-view d-none">
+      <div id="chatLog" class="chat-log"></div>
+      <form id="chatForm" class="chat-composer">
+        <div class="chat-context"><span id="chatContext"></span><span id="chatSkill" class="skill-chip d-none"></span></div>
+        <div class="chat-input-row">
+          <textarea id="chatInput" rows="1" placeholder="Ask about your project, or type / to use a skill" aria-label="Message"></textarea>
+          <button type="submit" id="chatSend" class="btn btn-sm cl-btn-primary" title="Send (Enter)"><i class="bi bi-send"></i></button>
+        </div>
+        <div class="chat-foot"><span>Enter to send · Shift+Enter new line · <kbd>/</kbd> skills</span><button type="button" id="chatNew" class="link-btn">New chat</button></div>
+      </form>
+    </div>
+    <div id="aiPanel" class="ai-body ai-view"></div>
+  </aside>
+</main>
+<footer class="statusbar" aria-label="Status">
+  <span id="sbProject"><i class="bi bi-folder2"></i> No project</span>
+  <span id="sbCursor" class="d-none"></span>
+  <span id="sbLang" class="d-none"></span>
+  <span class="sb-spacer"></span>
+  <a href="/knowledge/" id="sbDocs"><i class="bi bi-journal-text"></i> <span id="sbDocsN">0</span> docs</a>
+  <span title="Language model: {{ app_info.model_title }}"><i class="bi bi-stars"></i> {{ app_info.model }}</span>
+  <span title="Database"><i class="bi bi-database"></i> {{ app_info.db }}</span>
+</footer>
+
+<div class="modal fade" id="chunkModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content cl-modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title h6" id="chunkModalTitle"></div>
+          <div class="muted small" id="chunkModalMeta"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body"><pre id="chunkModalBody" class="chunk-full"></pre></div>
+      <div class="modal-footer">
+        <button type="button" id="chunkModalOpen" class="btn btn-sm cl-btn d-none"><i class="bi bi-box-arrow-up-right"></i> Open in editor</button>
+        <button type="button" class="btn btn-sm cl-btn" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+<script src="{% static 'js/tree.js' %}?v={{ asset_version }}"></script>
+<script src="{% static 'js/diff.js' %}?v={{ asset_version }}"></script>
+<script src="{% static 'js/slash.js' %}?v={{ asset_version }}"></script>
+<script src="{% static 'js/ai_panel.js' %}?v={{ asset_version }}"></script>
+<script src="{% static 'js/project_panel.js' %}?v={{ asset_version }}"></script>
+<script src="{% static 'js/ide.js' %}?v={{ asset_version }}"></script>
+{% endblock %}
